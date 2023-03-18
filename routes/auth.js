@@ -15,16 +15,17 @@ router.post('/createuser', [
   body('email', 'Enter a valid E-mail address').isEmail(),
   body('password', 'Password must be alteast 8 characters').isLength({ min: 8 }),
 ], async (req, res) => {
+  let success = false;
   // If there are any errors, return BadRequest and error
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success, errors: errors.array() });
   }
   try {
     // check whether the user with this email exists already
     let user = await User.findOne({ email: req.body.email });
     if (user) {
-      return res.status(400).json({ errors: [{ msg: 'User already exists' }] });
+      return res.status(400).json({ success, errors: [{ msg: 'User already exists' }] });
     }
 
     const saltRounds = 10;
@@ -52,7 +53,8 @@ router.post('/createuser', [
             };
             // Send the user data as a JSON response
             const authToken = jwt.sign(data, jwt_secret);
-            res.json({ authToken });
+            success = true;
+            res.json({ success, authToken });
           }
         });
       }
@@ -71,10 +73,11 @@ router.post('/login', [
   body('email', 'Enter a valid E-mail address').isEmail(),
   body('password', 'Password cannot be empty').exists(),
 ], async (req, res) => {
+  let success = false;
   // If there are any errors, return BadRequest and error
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success, errors: errors.array() });
   }
   // get the email and password
   const { email, password } = req.body;
@@ -82,12 +85,13 @@ router.post('/login', [
     // if email does not exist then throw an error
     let user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ errors: [{ msg: 'Please enter correct credentials' }] });
+      return res.status(400).json({ success, errors: [{ msg: 'Please enter correct credentials' }] });
     }
     // if password does not exist then throw an error
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ errors: [{ msg: 'Please enter correct credentials' }] });
+      success = false;
+      return res.status(400).json({ success, errors: [{ msg: 'Please enter correct credentials' }] });
     }
     // if credentials are valid, send the user id
     const payload = {
@@ -97,7 +101,8 @@ router.post('/login', [
     };
     // Send the user data as a JSON response
     const authToken = jwt.sign(payload, jwt_secret);
-    res.json({ authToken });
+    success = true;
+    res.json({ success, authToken });
   } catch (error) {
     // catch server errors, if any,
     console.error(error.message);
